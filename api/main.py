@@ -19,14 +19,59 @@ VERSION_MODELE = "reglog-v1"
 # Création des tables si elles n'existent pas encore
 Base.metadata.create_all(engine)
 
+DESCRIPTION_API = """
+API de prédiction de l'**attrition** (départ volontaire) des employés de TechNova Partners.
+
+* **Modèle** : régression logistique (scikit-learn), entraînée sur 1 470 employés.
+* **Entrée** : les 27 caractéristiques d'un employé (évaluation, SIRH, sondage).
+* **Sortie** : la probabilité de départ et la décision au seuil de 0,5.
+* **Traçabilité** : chaque demande et chaque prédiction sont enregistrées dans PostgreSQL.
+"""
+
 app = FastAPI(
     title="API Attrition TechNova Partners",
-    description="Prédit si un employé risque de quitter l'entreprise.",
-    version="0.4.0",
+    description=DESCRIPTION_API,
+    version="1.0.0",
 )
 
 
 class Employe(BaseModel):
+    """Les 27 caractéristiques d'un employé, telles qu'envoyées à l'API."""
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
+                "satisfaction_employee_environnement": 1,
+                "note_evaluation_precedente": 3,
+                "niveau_hierarchique_poste": 1,
+                "satisfaction_employee_nature_travail": 1,
+                "satisfaction_employee_equipe": 2,
+                "satisfaction_employee_equilibre_pro_perso": 1,
+                "note_evaluation_actuelle": 3,
+                "heure_supplementaires": "Oui",
+                "augementation_salaire_precedente": 11,
+                "age": 23,
+                "genre": "M",
+                "revenu_mensuel": 2100,
+                "statut_marital": "Célibataire",
+                "departement": "Commercial",
+                "poste": "Représentant Commercial",
+                "nombre_experiences_precedentes": 1,
+                "annee_experience_totale": 2,
+                "annees_dans_l_entreprise": 1,
+                "annees_dans_le_poste_actuel": 1,
+                "nombre_participation_pee": 0,
+                "nb_formations_suivies": 1,
+                "distance_domicile_travail": 22,
+                "niveau_education": 2,
+                "domaine_etude": "Marketing",
+                "frequence_deplacement": "Frequent",
+                "annees_depuis_la_derniere_promotion": 0,
+                "annes_sous_responsable_actuel": 0,
+            }]
+        }
+    }
+
     # Échelles de 1 à 4
     satisfaction_employee_environnement: int = Field(ge=1, le=4)
     note_evaluation_precedente: int = Field(ge=1, le=4)
@@ -76,12 +121,29 @@ class Employe(BaseModel):
         return self
 
 
-@app.get("/health")
+class ReponsePrediction(BaseModel):
+    """La réponse renvoyée par /predict."""
+    demande_id: int = Field(description="Identifiant de la demande dans la base (traçabilité)")
+    probabilite_depart: float = Field(ge=0, le=1, description="Probabilité que l'employé quitte l'entreprise")
+    va_quitter: Literal["Oui", "Non"] = Field(description="Décision au seuil de 0,5")
+
+
+@app.get("/health", tags=["Supervision"], summary="Vérifier que l'API est en marche")
 def health():
     return {"statut": "ok"}
 
 
-@app.post("/predict")
+@app.post(
+    "/predict",
+    tags=["Prédiction"],
+    summary="Prédire le risque de départ d'un employé",
+    description=(
+        "Enregistre la demande, calcule la probabilité de départ avec le modèle, "
+        "enregistre la prédiction puis la renvoie. Renvoie une erreur 422 si les données "
+        "sont invalides (champ manquant, valeur hors bornes, catégorie inconnue)."
+    ),
+    response_model=ReponsePrediction,
+)
 def predict(employe: Employe):
     with SessionLocal() as session:
         # 1. Enregistrer l'INPUT avant d'appeler le modèle
