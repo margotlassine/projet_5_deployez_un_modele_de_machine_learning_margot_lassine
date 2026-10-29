@@ -2,3 +2,5 @@ fastapi
 pytest
 scikit-learn
 pandas
+httpx
+uvicorn
