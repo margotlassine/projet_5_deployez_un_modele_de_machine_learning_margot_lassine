@@ -78,3 +78,19 @@ def test_predict_mauvais_type():
 def test_predict_annees_incoherentes():
     employe = {**EMPLOYE_VALIDE, "annees_dans_l_entreprise": 20, "annee_experience_totale": 8}
     assert client.post("/predict", json=employe).status_code == 422
+
+
+
+# ---------- Traçabilité : la demande et la prédiction sont enregistrées ----------
+
+def test_predict_enregistre_en_base():
+    from memoires_demandes.modeles import Demande, Prediction, SessionLocal
+
+    reponse = client.post("/predict", json=EMPLOYE_VALIDE)
+    demande_id = reponse.json()["demande_id"]
+
+    with SessionLocal() as session:
+        demande = session.get(Demande, demande_id)
+        prediction = session.query(Prediction).filter_by(demande_id=demande_id).one()
+        assert demande.age == EMPLOYE_VALIDE["age"]
+        assert prediction.va_quitter == reponse.json()["va_quitter"]
