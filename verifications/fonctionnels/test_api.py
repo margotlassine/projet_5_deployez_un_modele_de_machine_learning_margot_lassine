@@ -94,3 +94,30 @@ def test_predict_enregistre_en_base():
         prediction = session.query(Prediction).filter_by(demande_id=demande_id).one()
         assert demande.age == EMPLOYE_VALIDE["age"]
         assert prediction.va_quitter == reponse.json()["va_quitter"]
+
+
+
+# ---------- Cas d'usage réel : cohérence métier des prédictions ----------
+
+def test_profil_a_risque_plus_probable_que_profil_stable():
+    a_risque = {
+        **EMPLOYE_VALIDE,
+        "heure_supplementaires": "Oui",
+        "satisfaction_employee_equilibre_pro_perso": 1,
+        "satisfaction_employee_environnement": 1,
+        "revenu_mensuel": 2000,
+        "niveau_hierarchique_poste": 1,
+        "frequence_deplacement": "Frequent",
+    }
+    stable = {
+        **EMPLOYE_VALIDE,
+        "heure_supplementaires": "Non",
+        "satisfaction_employee_equilibre_pro_perso": 4,
+        "satisfaction_employee_environnement": 4,
+        "revenu_mensuel": 12000,
+        "niveau_hierarchique_poste": 4,
+        "frequence_deplacement": "Aucun",
+    }
+    p_risque = client.post("/predict", json=a_risque).json()["probabilite_depart"]
+    p_stable = client.post("/predict", json=stable).json()["probabilite_depart"]
+    assert p_risque > p_stable
