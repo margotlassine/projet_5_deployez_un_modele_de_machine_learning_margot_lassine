@@ -7,17 +7,22 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field, model_validator
 
 from api.preparation import preparer_donnees
+from memoires_demandes.modeles import Base, Demande, Prediction, SessionLocal, engine
 
 # Chargement du modèle UNE seule fois, au démarrage de l'API
 CHEMIN_MODELE = Path(__file__).parent.parent / "regression_logistique" / "modele_attrition.joblib"
 modele = joblib.load(CHEMIN_MODELE)
 
 SEUIL = 0.5  # seuil retenu dans le notebook (recall de 80 %)
+VERSION_MODELE = "reglog-v1"
+
+# Création des tables si elles n'existent pas encore
+Base.metadata.create_all(engine)
 
 app = FastAPI(
     title="API Attrition TechNova Partners",
     description="Prédit si un employé risque de quitter l'entreprise.",
-    version="0.3.0",
+    version="0.4.0",
 )
 
 
@@ -78,10 +83,28 @@ def health():
 
 @app.post("/predict")
 def predict(employe: Employe):
-    df = pd.DataFrame([employe.model_dump()])
-    df = preparer_donnees(df)
-    probabilite = modele.predict_proba(df)[0, 1]
-    return {
-        "probabilite_depart": round(float(probabilite), 3),
-        "va_quitter": "Oui" if probabilite >= SEUIL else "Non",
-    }
+    with SessionLocal() as session:
+        # 1. Enregistrer l'INPUT avant d'appeler le modèle
+        demande = Demande(**employe.model_dump())
+        session.add(demande)
+        session.commit()
+
+        # 2. Appeler le modèle
+        df = preparer_donnees(pd.DataFrame([employe.model_dump()]))
+        probabilite = float(modele.predict_proba(df)[0, 1])
+
+        # 3. Enregistrer l'OUTPUT, relié à sa demande
+        prediction = Prediction(
+            demande_id=demande.id,
+            probabilite_depart=round(probabilite, 3),
+            va_quitter="Oui" if probabilite >= SEUIL else "Non",
+            version_modele=VERSION_MODELE,
+        )
+        session.add(prediction)
+        session.commit()
+
+        return {
+            "demande_id": demande.id,
+            "probabilite_depart": prediction.probabilite_depart,
+            "va_quitter": prediction.va_quitter,
+        }
