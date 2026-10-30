@@ -70,4 +70,4 @@ On privilégie le **recall** : pour les RH, il vaut mieux s'entretenir avec un e
 6. Lancer `pytest`, puis ouvrir une pull request. Le robot bloque la fusion si un test échoue.
 7. Après la fusion, poser un tag de version.
 
-**Surveillance :** les requêtes de `memoires_demandes/requetes.sql` permettent de suivre la répartition des prédictions et de repérer les demandes restées sans réponse.
+**Surveillance :** les requêtes de `database_postgresql/requetes.sql` permettent de suivre la répartition des prédictions et de repérer les demandes restées sans réponse.

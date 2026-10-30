@@ -1,6 +1,6 @@
 from api.preparation import charger_dataset
-from memoires_demandes.create_db import creer_base
-from memoires_demandes.modeles import EmployeBDD, SessionLocal
+from database_postgresql.create_db import creer_base
+from database_postgresql.modeles import EmployeBDD, SessionLocal
 
 
 def test_creer_base_insere_tout_le_dataset():
