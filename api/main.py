@@ -7,16 +7,16 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field, model_validator
 
 from api.preparation import preparer_donnees
-from memoires_demandes.modeles import Base, Demande, Prediction, SessionLocal, engine
+from database_postgresql.modeles import Base, Demande, Prediction, SessionLocal, engine
 
-# Chargement du modèle UNE seule fois, au démarrage de l'API
+# Chargement du modèle mais qu'une seule fois: au démarrage de l'API !
 CHEMIN_MODELE = Path(__file__).parent.parent / "regression_logistique" / "modele_attrition.joblib"
 modele = joblib.load(CHEMIN_MODELE)
 
-SEUIL = 0.5  # seuil retenu dans le notebook (recall de 80 %)
+SEUIL = 0.5  # seuil gardé dans le notebook (recall de 80 %) du projet 4
 VERSION_MODELE = "reglog-v1"
 
-# Création des tables si elles n'existent pas encore
+# Création des tables si elles existent pas encore
 Base.metadata.create_all(engine)
 
 DESCRIPTION_API = """
@@ -72,17 +72,19 @@ class Employe(BaseModel):
         }
     }
 
-    # Échelles de 1 à 4
+    # Données aux notes de 1 à 4
     satisfaction_employee_environnement: int = Field(ge=1, le=4)
     note_evaluation_precedente: int = Field(ge=1, le=4)
     satisfaction_employee_nature_travail: int = Field(ge=1, le=4)
     satisfaction_employee_equipe: int = Field(ge=1, le=4)
     satisfaction_employee_equilibre_pro_perso: int = Field(ge=1, le=4)
     note_evaluation_actuelle: int = Field(ge=1, le=4)
-    # Échelles de 1 à 5
+    
+    # Données aux notes de 1 à 5
     niveau_hierarchique_poste: int = Field(ge=1, le=5)
     niveau_education: int = Field(ge=1, le=5)
-    # Valeurs numériques
+    
+    # Data aux valeurs numériques
     age: int = Field(ge=18, le=70)
     revenu_mensuel: int = Field(gt=0)
     augementation_salaire_precedente: int = Field(ge=0, le=100, description="En %, sans le symbole")
@@ -95,7 +97,8 @@ class Employe(BaseModel):
     annes_sous_responsable_actuel: int = Field(ge=0, le=50)
     nombre_participation_pee: int = Field(ge=0)
     nb_formations_suivies: int = Field(ge=0)
-    # Catégories : seules les valeurs connues du modèle sont acceptées
+    
+    # Data type catégorielles: attention on accepte seulement les valeurs connues du modèle
     heure_supplementaires: Literal["Oui", "Non"]
     frequence_deplacement: Literal["Aucun", "Occasionnel", "Frequent"]
     genre: Literal["F", "M"]
@@ -111,7 +114,7 @@ class Employe(BaseModel):
         "Ressources Humaines", "Transformation Digitale",
     ]
 
-    # Règle de cohérence entre deux champs
+    # Petite règle de cohérence entre deux champs
     @model_validator(mode="after")
     def verifier_coherence(self):
         if self.annees_dans_l_entreprise > self.annee_experience_totale:
@@ -146,16 +149,16 @@ def health():
 )
 def predict(employe: Employe):
     with SessionLocal() as session:
-        # 1. Enregistrer l'INPUT avant d'appeler le modèle
+        # step 1 = On enregistre l'INput avant d'appeler le modèle
         demande = Demande(**employe.model_dump())
         session.add(demande)
         session.commit()
 
-        # 2. Appeler le modèle
+        # step 2 = On appelle le modèle
         df = preparer_donnees(pd.DataFrame([employe.model_dump()]))
         probabilite = float(modele.predict_proba(df)[0, 1])
 
-        # 3. Enregistrer l'OUTPUT, relié à sa demande
+        # step 3 = On enregistre l'OUTput 
         prediction = Prediction(
             demande_id=demande.id,
             probabilite_depart=round(probabilite, 3),

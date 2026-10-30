@@ -84,7 +84,7 @@ def test_predict_annees_incoherentes():
 # ---------- Traçabilité : la demande et la prédiction sont enregistrées ----------
 
 def test_predict_enregistre_en_base():
-    from memoires_demandes.modeles import Demande, Prediction, SessionLocal
+    from database_postgresql.modeles import Demande, Prediction, SessionLocal
 
     reponse = client.post("/predict", json=EMPLOYE_VALIDE)
     demande_id = reponse.json()["demande_id"]

@@ -1,5 +1,5 @@
 from api.preparation import charger_dataset
-from memoires_demandes.modeles import Base, EmployeBDD, SessionLocal, engine
+from database_postgresql.modeles import Base, EmployeBDD, SessionLocal, engine
 
 
 def creer_base() -> int:
