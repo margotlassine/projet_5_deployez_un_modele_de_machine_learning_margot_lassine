@@ -9,7 +9,7 @@ from regression_logistique.entrainer import CHEMIN_MODELE, construire_pipeline, 
 
 @pytest.fixture(scope="module")
 def jeux():
-    """Le vrai dataset, séparé exactement comme à l'entraînement."""
+    """Le vrai dataset, séparé comme à l'entraînement."""
     return separer(preparer_donnees(charger_dataset()))
 
 

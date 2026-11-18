@@ -9,34 +9,33 @@ from pydantic import BaseModel, Field, model_validator
 from api.preparation import preparer_donnees
 from database_postgresql.modeles import Base, Demande, Prediction, SessionLocal, engine
 
-# Chargement du modèle mais qu'une seule fois: au démarrage de l'API !
-CHEMIN_MODELE = Path(__file__).parent.parent / "regression_logistique" / "modele_attrition.joblib"
-modele = joblib.load(CHEMIN_MODELE)
+# Chargement du modèle en démarrage de l'API (une seule fois)
+CHEMIN_DU_MODEL = Path(__file__).parent.parent / "regression_logistique" / "modele_attrition.joblib"
+modele = joblib.load(CHEMIN_DU_MODEL)
 
-SEUIL = 0.5  # seuil gardé dans le notebook (recall de 80 %) du projet 4
-VERSION_MODELE = "reglog-v1"
+SEUIL = 0.5  # seuil de probabilité/ de décision gardé lors du projet 4 
+VERSION_DU_MODELE = "reglog-v1"
 
 # Création des tables si elles existent pas encore
 Base.metadata.create_all(engine)
 
-DESCRIPTION_API = """
-API de prédiction de l'**attrition** (départ volontaire) des employés de TechNova Partners.
-
-* **Modèle** : régression logistique (scikit-learn), entraînée sur 1 470 employés.
-* **Entrée** : les 27 caractéristiques d'un employé (évaluation, SIRH, sondage).
-* **Sortie** : la probabilité de départ et la décision au seuil de 0,5.
-* **Traçabilité** : chaque demande et chaque prédiction sont enregistrées dans PostgreSQL.
+DESCRIPTION_DE_L_API = """
+API de prédiction de l'attrition (= les départs volontaires) des employés de l'entreprise TechNova Partners.
+* Modèle utilisé: La régression logistique entraînée sur 1 470 employés.
+* Données d'entrée: Les 27 caractéristiques d'un employé (depuis les 3 fichiers de données "évaluation", "SIRH", "sondages").
+* Données de sortie: La probabilité de départ et la décision au seuil de 0,5.
+* La traçabilité: Chaque demande + chaque prédiction sont enregistrées dans PostgreSQL.
 """
 
 app = FastAPI(
-    title="API Attrition TechNova Partners",
-    description=DESCRIPTION_API,
+    title="API Départs volontaires chez TechNova",
+    description=DESCRIPTION_DE_L_API,
     version="1.0.0",
 )
 
 
 class Employe(BaseModel):
-    """Les 27 caractéristiques d'un employé, telles qu'envoyées à l'API."""
+    """Les 27 types de données d'un employé (comme envoyées à l'API)."""
 
     model_config = {
         "json_schema_extra": {
@@ -84,7 +83,7 @@ class Employe(BaseModel):
     niveau_hierarchique_poste: int = Field(ge=1, le=5)
     niveau_education: int = Field(ge=1, le=5)
     
-    # Data aux valeurs numériques
+    # Données de type valeurs numériques
     age: int = Field(ge=18, le=70)
     revenu_mensuel: int = Field(gt=0)
     augementation_salaire_precedente: int = Field(ge=0, le=100, description="En %, sans le symbole")
@@ -98,7 +97,7 @@ class Employe(BaseModel):
     nombre_participation_pee: int = Field(ge=0)
     nb_formations_suivies: int = Field(ge=0)
     
-    # Data type catégorielles: attention on accepte seulement les valeurs connues du modèle
+    # Données de type catégorielles: attention on accepte seulement les valeurs connues du modèle !
     heure_supplementaires: Literal["Oui", "Non"]
     frequence_deplacement: Literal["Aucun", "Occasionnel", "Frequent"]
     genre: Literal["F", "M"]
@@ -114,24 +113,24 @@ class Employe(BaseModel):
         "Ressources Humaines", "Transformation Digitale",
     ]
 
-    # Petite règle de cohérence entre deux champs
+    # Création d'une petite règle qui bloque si le nb d'annees dans l'entreprise n'est pas + grand que le nombre d'annees d'XP totale 
     @model_validator(mode="after")
-    def verifier_coherence(self):
+    def regle_annees(self):
         if self.annees_dans_l_entreprise > self.annee_experience_totale:
             raise ValueError(
-                "annees_dans_l_entreprise ne peut pas dépasser annee_experience_totale"
+                "annees_dans_l_entreprise ne doit pas pouvoir dépasser annee_experience_totale"
             )
         return self
 
 
 class ReponsePrediction(BaseModel):
-    """La réponse renvoyée par /predict."""
-    demande_id: int = Field(description="Identifiant de la demande dans la base (traçabilité)")
-    probabilite_depart: float = Field(ge=0, le=1, description="Probabilité que l'employé quitte l'entreprise")
-    va_quitter: Literal["Oui", "Non"] = Field(description="Décision au seuil de 0,5")
+    """La réponse renvoyée par '/predict'."""
+    demande_id: int = Field(description="Identifiant de la demande dans la base (pour la traçabilité)")
+    probabilite_de_depart: float = Field(ge=0, le=1, description="Probabilité que l'employé quitte l'entreprise")
+    va_quitter: Literal["Oui", "Non"] = Field(description="Décision d'après le seuil de probabilité à 0,5")
 
 
-@app.get("/health", tags=["Supervision"], summary="Vérifier que l'API est en marche")
+@app.get("/health", tags=["Supervision"], summary="Vérifier que l'API fonctionne correctement")
 def health():
     return {"statut": "ok"}
 
@@ -163,13 +162,13 @@ def predict(employe: Employe):
             demande_id=demande.id,
             probabilite_depart=round(probabilite, 3),
             va_quitter="Oui" if probabilite >= SEUIL else "Non",
-            version_modele=VERSION_MODELE,
+            version_modele=VERSION_DU_MODELE,
         )
         session.add(prediction)
         session.commit()
 
         return {
             "demande_id": demande.id,
-            "probabilite_depart": prediction.probabilite_depart,
+            "probabilite_de_depart": prediction.probabilite_depart,
             "va_quitter": prediction.va_quitter,
         }

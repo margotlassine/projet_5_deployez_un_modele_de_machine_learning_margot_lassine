@@ -1,12 +1,11 @@
-# TechNova Partners – API de prédiction de l'attrition
-
-API qui prédit si un employé de TechNova Partners risque de quitter l'entreprise (via le modèle de la régression logistique).
+# TechNova Partners – API de prédiction des départs volontaires
+Création d'un API qui prédit si un employé de TechNova Partners risque de quitter l'entreprise (via le modèle de la régression logistique).
 Chaque demande et chaque prédiction sont enregistrées dans PostgreSQL.
 
 **Stack :** Python 3.13 · FastAPI · Pydantic · scikit-learn · PostgreSQL · SQLAlchemy · Pytest · GitHub Actions
 
-## Architecture
 
+## ARCHITECTURE
 ```mermaid
 flowchart LR
     U[Client] -->|POST /predict| A[API FastAPI + Pydantic]
@@ -21,79 +20,78 @@ flowchart LR
 | `api/` | API et préparation des données |
 | `regression_logistique/` | entraînement et modèle sauvegardé |
 | `database_postgresql/` | base de données (tables, création, requêtes, [schéma](database_postgresql/SCHEMA.md)) |
-| `verifications/` | tests unitaires et fonctionnels |
+| `verifications_tests/` | tests unitaires et fonctionnels |
 | `docs/MODELE.md` | [documentation du modèle](docs/MODELE.md) |
 
-## Choix techniques
 
-- **FastAPI** : génère automatiquement la documentation Swagger et valide les données grâce à Pydantic.
-- **Pydantic** : refuse les données absurdes avant l'appel au modèle (bornes, catégories inconnues, incohérences), avec une erreur 422 claire.
-- **Une seule fonction de préparation** : la même est utilisée à l'entraînement et dans l'API, donc les transformations sont toujours identiques.
-- **PostgreSQL + SQLAlchemy** : chaque demande et chaque prédiction sont reliées par une clé étrangère, pour une traçabilité complète.
-- **Régression logistique** : meilleur PR-AUC (0,638) et meilleur recall parmi les 5 modèles testés, et modèle explicable (détails dans [docs/MODELE.md](docs/MODELE.md)).
+## LES CHOIX TECHNIQUES
+- **FastAPI**: Permet de généree automatiquement la documentation *Swagger* + permet de valider les données grâce à *Pydantic*.
+- **Pydantic**: refuse les données "éxagérées" avant d'appeler le modèle (bornes, catégories inconnues, incohérences), avec l'erreur 422.
+- **Une seule fonction de préparation**: qui est utilisée à l'entraînement mais aussi dans l'API. Donc les transformations sont toujours identiques.
+- **PostgreSQL + SQLAlchemy**: chaque demande et chaque prédiction sont reliées par une clé étrangère -> permet de garantir la traçabilité.
+- **Régression logistique**: modèle gardé lors du projet 4 car meilleur PR-AUC (0,638) et meilleur recall parmi les modèles testés.
 
-## Installation
 
+## L'INSTALLATION
 ```bash
 git clone https://github.com/margotlassine/projet_5_deployez_un_modele_de_machine_learning_margot_lassine.git
 cd projet_5_deployez_un_modele_de_machine_learning_margot_lassine
 pip install -r requirements.txt
 ```
 
-Base de données (PostgreSQL 17) :
+Base de données (PostgreSQL 17):
 ```bash
-psql postgres -c "CREATE USER technova WITH PASSWORD 'votre_mot_de_passe';"
-psql postgres -c "CREATE DATABASE attrition OWNER technova;"
-echo "DATABASE_URL=postgresql://technova:votre_mot_de_passe@localhost:5432/attrition" > .env
+psql postgres -c "CREATE USER user_1 WITH PASSWORD 'mot_de_passe';"
+psql postgres -c "CREATE DATABASE attrition OWNER user_1;"
+echo "DATABASE_URL=postgresql://user_1:mot_de_passe@localhost:5432/attrition" > .env
 python -m database_postgresql.create_db
 ```
 
-## Utilisation
-
+## L'UTILISATION 
 ```bash
 uvicorn api.main:app --reload
 ```
 
-Documentation Swagger : http://127.0.0.1:8000/docs
+La documentation de Swagger = http://127.0.0.1:8000/docs
 
-- `GET /health` : vérifie que l'API est en marche
-- `POST /predict` : renvoie la probabilité de départ d'un employé
+- `GET /health` -> vérifie que l'API soit bien en marche
+- `POST /predict` > renvoie la probabilité de départ volontaire d'un employé
 
 ```bash
 curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d @exemple_employe.json
 ```
-Réponse : `{"demande_id": 12, "probabilite_depart": 0.858, "va_quitter": "Oui"}`
+Réponse: `{"demande_id": 12, "probabilite_depart": 0.858, "va_quitter": "Oui"}`
 
-Les données invalides sont refusées avec une erreur 422.
+Les données invalides sont refusées avec une erreur "**422**".
 
-## Tests
 
+## LES TESTS UNITAIRES ET FONCTIONNELS
 ```bash
 pytest
 ```
-26 tests (unitaires et fonctionnels), 99 % de couverture. Le rapport HTML est généré dans `htmlcov/`.
+26 tests (unitaires et fonctionnels), 99 % de couverture --> le rapport HTML est généré dans `htmlcov/`.
 
-## Déploiement
 
-- **CI/CD** : à chaque push, GitHub Actions lance les tests (environnements dev → test → prod). La fusion dans `main` est bloquée si un test échoue.
-- **API** : déployée en local avec `uvicorn`, comme l'autorise la mission.
+## LE DÉPLOIEMENT
+- **La pipeline CI/CD**: à chaque push, GitHub Actions lance les tests (environnements dev vers test puis vers prod). On bloque la fusion dans `main` si un test échoue.
+- **L'API**: elle est déployée en local via `uvicorn`.
 
-## Authentification et sécurisation
 
-- Base protégée par un utilisateur dédié et un mot de passe.
-- Mot de passe stocké dans `.env`, ignoré par Git.
-- Données d'entrée validées par Pydantic.
-- Limite : l'API n'a pas d'authentification (POC local). En production, il faudrait ajouter une clé d'API et le HTTPS.
+## L'AUTHENTIFICATION ET LA SÉCURISATION 
+- La base PostgreSQL `attrition` est accessible avec un utilisateur dédié, `user_1`, protégé par un mot de passe.
+- Le mot de passe stocké dans `.env`, ignoré par Git.
+- Les données d'entrée doivent être validées par Pydantic.
+- Notre limite -> l'API n'a pas d'authentification puisqu'il s'agit d'un POC local. Donc dans la prod, il faudrait ajouter une clé de l'API et le HTTPS.
 
-## Conventions
 
-- Branches : `feature/…`, `fix/…`, `docs/…`
+## LES CONVENTIONS RESPECTÉES 
+- Les branches = `feature/…`, `fix/…`, `docs/…`
 - Un tag de version par étape (`v0.1.0` → `v1.0.0`)
 
-## Gestion des données
 
-### Parcours des données
+## LA GESTION DES DONNÉES
 
+### LE PARCOURS DES DONNÉES
 ```mermaid
 flowchart LR
     C[3 fichiers CSV] -->|charger_dataset + nettoyage| E[(employes)]
@@ -103,24 +101,38 @@ flowchart LR
     P -.->|demande_id| D
 ```
 
-1. **Intégration du dataset** : `create_db.py` fusionne les 3 fichiers CSV (évaluations, SIRH, sondage), retire le « % » de l'augmentation de salaire, puis insère les 1 470 employés dans `employes`. L'insertion n'a lieu que si la table est vide, pour éviter les doublons.
-2. **Réception d'une demande** : l'API valide les données avec Pydantic, puis les enregistre dans `demandes` **avant** d'appeler le modèle. Une demande reste ainsi tracée même si le modèle échoue.
-3. **Prédiction** : les données sont transformées par `preparer_donnees` (la même fonction qu'à l'entraînement), puis envoyées au modèle.
-4. **Stockage du résultat** : la probabilité, la décision, la version du modèle et la date sont enregistrées dans `predictions`, reliées à leur demande par `demande_id`.
+1. **Intégration des 3 fichiers en un dataset**
+    - `create_db.py` vient construire les tables en fusionnant les 3 fichiers CSV (évaluations, SIRH, sondage),
+    - retire le « % » de l'augmentation de salaire pour que toutes les données soient similaires,
+    - insère et range les 1 470 employés dans `employes` --> Attention, intégration uniquement si la table est vide, pour éviter les doublons.
 
-### Stockage
+2. **Réception d'une demande** 
+    - l'API valide les données avec Pydantic, 
+    - elle les enregistre dans `demandes` avant d'appeler le modèle --> permet de tracée les demandes même si le modèle échoue !
 
+3. **Prédiction** 
+    - les données sont transformées par `preparer_donnees` 
+    - elles sont envoyées au modèle.
+
+4. **Stockage du résultat** 
+    - la probabilité la décision, 
+    - la version du modèle 
+    - la date 
+    --> sont enregistrées dans `predictions` & reliées à leur demande par `demande_id`.
+
+
+### LE STOCKAGE
 | Table | Rôle | Alimentée par |
 |---|---|---|
-| `employes` | données d'origine, pour l'analyse et le réentraînement | `create_db.py` (une fois) |
-| `demandes` | inputs reçus par l'API | chaque appel à `/predict` |
-| `predictions` | outputs du modèle | chaque appel à `/predict` |
+| `employes` | les données d'origine, pour l'analyse et le réentraînement | `create_db.py` (une fois) |
+| `demandes` | INputs reçus par l'API | chaque appel à `/predict` |
+| `predictions` | OUTputs du modèle | chaque appel à `/predict` |
 
-Les données ne sont jamais modifiées après enregistrement : on garde un historique complet et fidèle des échanges.
+--> On ne modifie pas les données après l'enregistrement, on va garder un historisque complet des échanges. 
 
-### Besoins analytiques
 
-Les tables permettent aux RH et à l'équipe data de suivre :
+### LES BESOINS ANALYTIQUES
+Les tables vont permettent aux RH et à l'équipe data de suivre:
 
 | Besoin | Indicateur | Requête |
 |---|---|---|
@@ -130,4 +142,9 @@ Les tables permettent aux RH et à l'équipe data de suivre :
 | Comprendre l'attrition réelle | taux de départ par département | `requetes.sql` n°4 |
 | Détecter une dérive | écart entre le taux de « Oui » prédits et le taux réel (~16 %) | comparaison des requêtes 3 et 4 |
 
-**Tableau de bord envisagé** : taux de départs prédits par département et par mois, nombre de demandes par jour, probabilité moyenne, et alerte si la part de « Oui » s'éloigne fortement du taux réel. Ces indicateurs se calculent directement à partir des tables `demandes` et `predictions`.
+**Tableau de bord envisagé** avec: 
+- le taux de départs prédits par département et par mois, 
+- le nombre de demandes par jour, 
+- la probabilité moyenne, 
+- une alerte si la part de « Oui » s'éloigne fortement du taux réel. 
+--> Ces indicateurs se calculent directement à partir des tables `demandes` et `predictions`.
