@@ -1,48 +1,54 @@
+#continuous integration: intégration continue
 name: CI
 
+#déclenchement du robot: vérifications puis re vérifications avant fusion merge  
 on:
   push:
     branches: ["**"]
   pull_request:
     branches: [main]
 
+#Tests 
 jobs:
   tests:
+    #réglages des tests 
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'pull_request' && 'test' || 'dev' }}
+    #étapes des tests 
     steps:
-      - name: Récupérer le code
+      - name: Récupère le code
         uses: actions/checkout@v5
 
-      - name: Installer Python
+      - name: Installe Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
-      - name: Installer les dépendances
+      - name: Installe les dépendances
         run: pip install -r requirements.txt
 
-      - name: Afficher l'environnement
+      - name: Affiche l'environnement
         run: echo "Environnement ${{ vars.APP_ENV }}"
 
-      - name: Lancer les tests
+      - name: Lance les tests
         run: pytest
 
-      - name: Publier le rapport de couverture
+      - name: Publie le rapport de couverture
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: rapport-couverture
           path: htmlcov/
 
+#réglages du déploiement 
   deploy:
     needs: tests
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
     steps:
-      - name: Récupérer le code
+      - name: Récupère le code
         uses: actions/checkout@v5
 
-      - name: Déployer
+      - name: Déploye
         run: echo "Déploiement en environnement ${{ vars.APP_ENV }}"

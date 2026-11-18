@@ -3,11 +3,13 @@ from database_postgresql.modeles import Base, EmployeBDD, SessionLocal, engine
 
 
 def creer_base() -> int:
-    """Crée les tables, insère le dataset s'il est absent, et renvoie le nombre d'employés."""
+    """Construction des des tables,
+     Lecture des 3 fichiers (+ on enlève le % à l'augmentation des salaires),
+     Rangement des employés dans la table (seulement si vide pour ne pas les ranger 2 fois)"""
     Base.metadata.create_all(engine)
 
     df = charger_dataset()
-    # On stocke l'augmentation en nombre, sans le " %"
+    # Suppression du % pour l'augmentation du salaire 
     df["augementation_salaire_precedente"] = (
         df["augementation_salaire_precedente"].astype(str).str.replace(" %", "").astype(int)
     )
@@ -20,5 +22,5 @@ def creer_base() -> int:
 
 
 if __name__ == "__main__":
-    print("Tables créées :", list(Base.metadata.tables))
-    print("Employés dans la base :", creer_base())
+    print("Tables créées =", list(Base.metadata.tables))
+    print("Employés dans la base =", creer_base())

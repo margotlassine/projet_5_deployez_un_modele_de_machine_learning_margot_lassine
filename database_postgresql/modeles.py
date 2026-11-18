@@ -5,8 +5,10 @@ from dotenv import load_dotenv
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
-# Lecture de l'adresse de la base dans le fichier .env (jamais dans le code)
-load_dotenv()
+#Accès à la base de données:
+#Les identifiants (user + mot de passe) ne sont pas écrits dans le code mais rangés dans le fichier .env qui sera ignoré par Git avec gitignore.
+#load_dotenv() va charger ce fichier, puis on va lire la variable DATABASE_URL.
+#dans le cas où elle est absente os.environ[...] va lever une erreur et le programme s'arrêtera sur .load_dotenv()
 DATABASE_URL = os.environ["DATABASE_URL"]
 
 engine = create_engine(DATABASE_URL)
@@ -18,7 +20,7 @@ class Base(DeclarativeBase):
 
 
 class ColonnesEmploye:
-    """Les 27 colonnes d'un employé, partagées par 'employes' et 'demandes'."""
+    """Les 27 caractéristiques d'un employé, partagées par "employes" et "demandes"."""
     satisfaction_employee_environnement: Mapped[int] = mapped_column(Integer)
     note_evaluation_precedente: Mapped[int] = mapped_column(Integer)
     niveau_hierarchique_poste: Mapped[int] = mapped_column(Integer)
@@ -49,14 +51,14 @@ class ColonnesEmploye:
 
 
 class EmployeBDD(ColonnesEmploye, Base):
-    """Le dataset d'origine (1 470 employés)."""
+    """Le dataset de base des 1 470 employés."""
     __tablename__ = "employes"
     id: Mapped[int] = mapped_column(primary_key=True)
     a_quitte_l_entreprise: Mapped[str] = mapped_column(String(3))
 
 
 class Demande(ColonnesEmploye, Base):
-    """Les INPUTS : chaque employé envoyé à l'API."""
+    """Les INputs = chaque employé est envoyé à l'API."""
     __tablename__ = "demandes"
     id: Mapped[int] = mapped_column(primary_key=True)
     date_demande: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -64,7 +66,7 @@ class Demande(ColonnesEmploye, Base):
 
 
 class Prediction(Base):
-    """Les OUTPUTS : la réponse du modèle, reliée à sa demande."""
+    """Les OUTputs = la réponse du modèle avec sa demande initiale."""
     __tablename__ = "predictions"
     id: Mapped[int] = mapped_column(primary_key=True)
     demande_id: Mapped[int] = mapped_column(ForeignKey("demandes.id"), unique=True)

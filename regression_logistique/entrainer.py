@@ -30,7 +30,7 @@ VARIABLES_NUMERIQUES = [
 
 
 def construire_pipeline() -> Pipeline:
-    """Pipeline avec les meilleurs hyperparamètres trouvés dans le notebook."""
+    """Pipeline avec les meilleurs hyperparamètres."""
     return Pipeline([
         ("encodage", ColumnTransformer(transformers=[
             ("num", StandardScaler(), VARIABLES_NUMERIQUES),
@@ -44,7 +44,7 @@ def construire_pipeline() -> Pipeline:
 
 
 def separer(df):
-    """Sépare X/y puis train/test, toujours de la même façon (random_state fixé)."""
+    """Séparation du X/y puis train/test avec random_state fixé."""
     X = df[VARIABLES_NUMERIQUES + VARIABLES_CATEGORIELLES]
     y = (df["a_quitte_l_entreprise"] == "Oui").astype(int)
     return train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)

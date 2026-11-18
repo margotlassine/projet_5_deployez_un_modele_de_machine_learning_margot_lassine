@@ -4,7 +4,7 @@ from api.main import app
 
 client = TestClient(app)
 
-# Un employé valide, réutilisé dans tous les tests
+#Un employé valide -> réutilisé dans tous les tests
 EMPLOYE_VALIDE = {
     "satisfaction_employee_environnement": 2,
     "note_evaluation_precedente": 3,
@@ -36,8 +36,7 @@ EMPLOYE_VALIDE = {
 }
 
 
-# ---------- Cas qui doivent fonctionner ----------
-
+#Les cas qui doivent fonctionner
 def test_health():
     reponse = client.get("/health")
     assert reponse.status_code == 200
@@ -48,12 +47,11 @@ def test_predict_employe_valide():
     reponse = client.post("/predict", json=EMPLOYE_VALIDE)
     assert reponse.status_code == 200
     resultat = reponse.json()
-    assert 0 <= resultat["probabilite_depart"] <= 1
+    assert 0 <= resultat["probabilite_de_depart"] <= 1
     assert resultat["va_quitter"] in ["Oui", "Non"]
 
 
-# ---------- Scénarios d'erreur : l'API doit refuser (422) ----------
-
+#Scenarios d'erreur: Lorsque l'API doit refuser (code 422)
 def test_predict_poste_inconnu():
     employe = {**EMPLOYE_VALIDE, "poste": "Astronaute"}
     assert client.post("/predict", json=employe).status_code == 422
@@ -81,8 +79,7 @@ def test_predict_annees_incoherentes():
 
 
 
-# ---------- Traçabilité : la demande et la prédiction sont enregistrées ----------
-
+#Pour la traçabilité -> l'enregistrement de la demande et de la prédiction 
 def test_predict_enregistre_en_base():
     from database_postgresql.modeles import Demande, Prediction, SessionLocal
 
@@ -97,8 +94,7 @@ def test_predict_enregistre_en_base():
 
 
 
-# ---------- Cas d'usage réel : cohérence métier des prédictions ----------
-
+#Cas usage métier: cohérence métier des prédictions 
 def test_profil_a_risque_plus_probable_que_profil_stable():
     a_risque = {
         **EMPLOYE_VALIDE,
@@ -118,6 +114,6 @@ def test_profil_a_risque_plus_probable_que_profil_stable():
         "niveau_hierarchique_poste": 4,
         "frequence_deplacement": "Aucun",
     }
-    p_risque = client.post("/predict", json=a_risque).json()["probabilite_depart"]
-    p_stable = client.post("/predict", json=stable).json()["probabilite_depart"]
+    p_risque = client.post("/predict", json=a_risque).json()["probabilite_de_depart"]
+    p_stable = client.post("/predict", json=stable).json()["probabilite_de_depart"]
     assert p_risque > p_stable
