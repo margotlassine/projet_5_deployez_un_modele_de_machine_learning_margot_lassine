@@ -9,6 +9,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship,
 #Les identifiants (user + mot de passe) ne sont pas écrits dans le code mais rangés dans le fichier .env qui sera ignoré par Git avec gitignore.
 #load_dotenv() va charger ce fichier, puis on va lire la variable DATABASE_URL.
 #dans le cas où elle est absente os.environ[...] va lever une erreur et le programme s'arrêtera sur .load_dotenv()
+load_dotenv()
 DATABASE_URL = os.environ["DATABASE_URL"]
 
 engine = create_engine(DATABASE_URL)
